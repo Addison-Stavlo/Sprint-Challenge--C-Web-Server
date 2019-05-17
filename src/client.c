@@ -45,7 +45,16 @@ urlinfo_t *parse_url(char *url)
     5. Set the port pointer to 1 character after the spot returned by strchr.
     6. Overwrite the colon with a '\0' so that we are just left with the hostname.
   */
-
+  char *http = strstr(url, "http://");
+  char *https = strstr(url, "https://");
+  if (http != NULL)
+  {
+    url += 7;
+  }
+  else if (https != NULL)
+  {
+    url += 8;
+  }
   // FIND PATH (the stuff after the /)
   //find the first slash in the URL
   const char slash = '/';
