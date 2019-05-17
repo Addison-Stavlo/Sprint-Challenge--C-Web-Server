@@ -132,6 +132,10 @@ int send_request(int fd, char *hostname, char *port, char *path)
 // Stretch for -h functionality
 void print_after_header(char *buf)
 {
+  // TODO every iteration of the buffer is subject to this header-cut off
+  // we wither need a buffer large enough to hold the entire response...
+  // or only check this on the first iteration in the loop
+  // works great for short responses... can see issue with GET to google.com
   char *end_header = strstr(buf, "\r\n\r\n");
   if (end_header != NULL)
   {
