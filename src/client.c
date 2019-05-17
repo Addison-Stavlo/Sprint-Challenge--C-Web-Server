@@ -170,6 +170,29 @@ int main(int argc, char *argv[])
     fprintf(stdout, "%s\n", buf);
   }
 
+  // STRETCH - check redirect
+  char *redirect = strstr(buf, "301 Moved Permanently");
+  if (redirect != NULL)
+  {
+    char *location = strstr(buf, "Location: ");
+    if (location != NULL)
+    {
+      location += 10;
+      char newline = '\n';
+      char *end = strchr(location, newline);
+      end[0] = '\0';
+      urlinfo = parse_url(location);
+
+      close(sockfd);
+      sockfd = get_socket(urlinfo->hostname, urlinfo->port);
+      send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
+      while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
+      {
+        fprintf(stdout, "%s\n", buf);
+      }
+    }
+  }
+
   // clean up
   free(urlinfo->hostname);
   free(urlinfo->path);
