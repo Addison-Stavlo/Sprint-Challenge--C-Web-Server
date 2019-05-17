@@ -62,6 +62,7 @@ urlinfo_t *parse_url(char *url)
   else
   {
     printf("there is no / to find the request path!!!\n");
+    path = strdup("");
   }
 
   // FIND PORT (the stuff between : and /)
@@ -80,6 +81,7 @@ urlinfo_t *parse_url(char *url)
   else
   {
     printf("there is no : to find the port number!!!\n");
+    port = strdup("80");
   }
 
   // whats left in URL is the hostname
@@ -150,13 +152,16 @@ int main(int argc, char *argv[])
   // initiate socket
   sockfd = get_socket(urlinfo->hostname, urlinfo->port);
 
+  // send request
   send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
 
+  // receive request -> print to stdout
   while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
   {
     fprintf(stdout, "%s\n", buf);
   }
 
+  // clean up
   free(urlinfo->hostname);
   free(urlinfo->path);
   free(urlinfo->port);
