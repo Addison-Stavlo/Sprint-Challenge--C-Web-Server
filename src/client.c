@@ -66,11 +66,9 @@ urlinfo_t *parse_url(char *url)
     path[0] = '\0';
     // Set the path pointer to 1 character after
     path += 1;
-    printf("path: %s\n", path);
   }
   else
   {
-    printf("there is no / to find the request path!!!\n");
     path = strdup("");
   }
 
@@ -85,17 +83,13 @@ urlinfo_t *parse_url(char *url)
     port[0] = '\0';
     // Set the port pointer to 1 character after the spot returned by strchr.
     port += 1;
-    printf("port: %s\n", port);
   }
   else
   {
-    printf("there is no : to find the port number!!!\n");
     port = strdup("80");
   }
 
   // whats left in URL is the hostname
-  printf("hostname: %s\n", url);
-
   urlinfo->hostname = strdup(url);
   urlinfo->path = strdup(path);
   urlinfo->port = strdup(port);
@@ -135,14 +129,71 @@ int send_request(int fd, char *hostname, char *port, char *path)
   // return 0;
 }
 
+// Stretch for -h functionality
+void print_after_header(char *buf)
+{
+  char *end_header = strstr(buf, "\r\n\r\n");
+  if (end_header != NULL)
+  {
+    end_header += 4;
+    fprintf(stdout, "%s\n", end_header);
+  }
+  else
+  {
+    end_header = strstr(buf, "\n\n");
+    if (end_header != NULL)
+    {
+      end_header += 2;
+      fprintf(stdout, "%s\n", end_header);
+    }
+  }
+}
+
+void recv_response(int sockfd, char *buf, int argc, char *argv[], struct urlinfo_t *urlinfo)
+{
+  int numbytes;
+  while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
+  {
+    // STRETCH - check redirect
+    char *redirect = strstr(buf, "301 Moved Permanently");
+    if (redirect != NULL)
+    {
+      char *location = strstr(buf, "Location: ");
+      if (location != NULL)
+      {
+        location += 10;
+        char newline = '\n';
+        char *end = strchr(location, newline);
+        end[0] = '\0';
+        urlinfo = parse_url(location);
+
+        close(sockfd);
+        sockfd = get_socket(urlinfo->hostname, urlinfo->port);
+        send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
+
+        recv_response(sockfd, buf, argc, argv, urlinfo);
+      }
+    }
+    // check to see if we should display header
+    if (argc > 2 && strcmp(argv[2], "-h") == 0)
+    {
+      fprintf(stdout, "%s\n", buf);
+    }
+    else
+    {
+      print_after_header(buf);
+    }
+  }
+}
+
 int main(int argc, char *argv[])
 {
   int sockfd, numbytes;
   char buf[BUFSIZE];
 
-  if (argc != 2)
+  if (argc != 2 && argc != 3)
   {
-    fprintf(stderr, "usage: client HOSTNAME:PORT/PATH\n");
+    fprintf(stderr, "usage: client HOSTNAME:PORT/PATH (optional -h)\n");
     exit(1);
   }
 
@@ -156,7 +207,6 @@ int main(int argc, char *argv[])
 
   // parse URL input
   struct urlinfo_t *urlinfo = parse_url(argv[1]);
-  printf("%s - %s - %s\n", urlinfo->hostname, urlinfo->port, urlinfo->path);
 
   // initiate socket
   sockfd = get_socket(urlinfo->hostname, urlinfo->port);
@@ -165,33 +215,7 @@ int main(int argc, char *argv[])
   send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
 
   // receive request -> print to stdout
-  while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
-  {
-    fprintf(stdout, "%s\n", buf);
-  }
-
-  // STRETCH - check redirect
-  char *redirect = strstr(buf, "301 Moved Permanently");
-  if (redirect != NULL)
-  {
-    char *location = strstr(buf, "Location: ");
-    if (location != NULL)
-    {
-      location += 10;
-      char newline = '\n';
-      char *end = strchr(location, newline);
-      end[0] = '\0';
-      urlinfo = parse_url(location);
-
-      close(sockfd);
-      sockfd = get_socket(urlinfo->hostname, urlinfo->port);
-      send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
-      while ((numbytes = recv(sockfd, buf, BUFSIZE - 1, 0)) > 0)
-      {
-        fprintf(stdout, "%s\n", buf);
-      }
-    }
-  }
+  recv_response(sockfd, buf, argc, argv, urlinfo);
 
   // clean up
   free(urlinfo->hostname);
