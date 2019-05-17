@@ -136,6 +136,8 @@ void print_after_header(char *buf)
   // we wither need a buffer large enough to hold the entire response...
   // or only check this on the first iteration in the loop
   // works great for short responses... can see issue with GET to google.com
+  // if \r\n\r\n or \n\n is found in the body after the header in a new iteration,
+  // we cut off section of body.. es no bueno.
   char *end_header = strstr(buf, "\r\n\r\n");
   if (end_header != NULL)
   {
